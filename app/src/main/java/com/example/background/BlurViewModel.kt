@@ -20,6 +20,7 @@ import android.app.Application
 import android.graphics.BlurMaskFilter
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
 import androidx.work.*
 import com.example.background.workers.BlurWorker
 import com.example.background.workers.CleanupWorker
@@ -31,6 +32,10 @@ class BlurViewModel(application: Application) : AndroidViewModel(application) {
     internal var imageUri: Uri? = null
     internal var outputUri: Uri? = null
     private val workManger = WorkManager.getInstance(application)
+    internal val outputWorkInfos: LiveData<List<WorkInfo>>
+    init {
+        outputWorkInfos = workManger.getWorkInfosByTagLiveData(TAG_OUTPUT)
+    }
 
     /**
      * Create the WorkRequest to apply the blur and save the resulting image
@@ -58,6 +63,7 @@ class BlurViewModel(application: Application) : AndroidViewModel(application) {
 
         // Add WorkRequest to save the image to the filesystem
         val saveRequest = OneTimeWorkRequest.Builder(SaveImageToFileWorker::class.java)
+                .addTag(TAG_OUTPUT)
                 .build()
 
        continuation = continuation.then(saveRequest)

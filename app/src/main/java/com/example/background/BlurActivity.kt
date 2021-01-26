@@ -16,10 +16,13 @@
 
 package com.example.background
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
+import androidx.work.WorkInfo
 import com.bumptech.glide.Glide
 import com.example.background.databinding.ActivityBlurBinding
 
@@ -36,6 +39,9 @@ class BlurActivity : AppCompatActivity(), View.OnClickListener {
         // Get the ViewModel
         viewModel = ViewModelProviders.of(this).get(BlurViewModel::class.java)
 
+        viewModel.outputWorkInfos.observe(this,workInfosObservers())
+
+
         // Image uri should be stored in the ViewModel; put it there then display
         val imageUriExtra = intent.getStringExtra(KEY_IMAGE_URI)
         viewModel.setImageUri(imageUriExtra)
@@ -44,7 +50,37 @@ class BlurActivity : AppCompatActivity(), View.OnClickListener {
         }
 
         binding.goButton.setOnClickListener (this )
+        binding.seeFileButton.setOnClickListener(this)
     }
+
+    private fun workInfosObservers() :Observer<List<WorkInfo>>{
+        return Observer { listOfWorkInfo ->
+
+            if (listOfWorkInfo.isNullOrEmpty()){
+                return@Observer
+            }
+
+            val workInfo = listOfWorkInfo[0]
+
+            if (workInfo.state.isFinished){
+                showWorkFinished()
+
+                val outPutImageUri = workInfo.outputData.getString(KEY_IMAGE_URI)
+
+                // If there is an output file show "See File" button
+                if (!outPutImageUri.isNullOrBlank()){
+                    viewModel.setOutputUri(outPutImageUri as String)
+                    binding.seeFileButton.visibility = View.VISIBLE
+                }
+            }else{
+                showWorkInProgress()
+            }
+
+        }
+
+
+    }
+
 
     /**
      * Shows and hides views for when the Activity is processing an image
@@ -79,9 +115,17 @@ class BlurActivity : AppCompatActivity(), View.OnClickListener {
             }
 
     override fun onClick(v: View?) {
-        if (v?.id == R.id.go_button){
-            viewModel.applyBlur(blurLevel)
+        when (v?.id ){
+                R.id.go_button -> viewModel.applyBlur(blurLevel)
+            R.id.see_file_button -> viewModel.outputUri?. let {currentUri ->
+                val actionView = Intent(Intent.ACTION_VIEW, currentUri)
+                actionView.resolveActivity(packageManager)?.run {
+                    startActivity(actionView)
+                }            }
 
         }
     }
+
+
+
 }
